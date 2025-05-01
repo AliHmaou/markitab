@@ -1,0 +1,6 @@
+gradio
+duckdb
+docling
+markitdown
+PyPDF2
+markdown
