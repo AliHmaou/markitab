@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from docling.document_converter import DocumentConverter
+from docling.datamodel.pipeline_options import PictureDescriptionApiOptions
+
 
 import gradio as gr
 import shutil, tempfile
@@ -25,6 +27,17 @@ def convert_directory(
         "csv",
         "png", "jpeg", "jpg", "tiff", "bmp",
     }
+    
+    picture_description_options = PictureDescriptionApiOptions(
+        url="http://localhost:1234/v1/chat/completions",
+        params={
+            "model": "llava-1.5-7b-hf",
+            "seed": 42,
+            "max_completion_tokens": 200,
+        },
+        prompt="Décrivez l'image en trois phrases. Soyez concis et précis.",
+        timeout=90,
+    )
 
     directory = Path(directory)
 
@@ -55,6 +68,11 @@ def convert_directory(
     all_docs_pages: List[Tuple[str, List[str]]] = []
     for doc_path in doc_paths:
         result = converter.convert(str(doc_path))
+        # Extraire les descriptions d'images
+        pictures = result.document.pictures
+        for picture in pictures:
+            description = picture.annotations[0].text if picture.annotations else "Aucune description disponible."
+            markdown_blocks.append(f"**Description de l'image :** {description}\n")
 
         pages_md: List[str] = [
             result.document.export_to_markdown(page_no=i)
@@ -73,7 +91,7 @@ def convert_directory(
     for file_name, pages_md in all_docs_pages:
         markdown_blocks.append("\n\n---\n\n")  # Saut de page dans le markdown
         markdown_blocks.append(f"*Début du document : {file_name}*\n")
-        for page_number, page_md in enumerate(pages_md, start=0):
+        for page_number, page_md in enumerate(pages_md, start=1):
             markdown_blocks.append(f"*Début de la page {page_number} du doc : {file_name}*\n")
             markdown_blocks.append(page_md.strip())
             markdown_blocks.append(f"\n*Fin de la page {page_number} du doc : {file_name}**\n")
@@ -119,4 +137,4 @@ with gr.Blocks(title="Dossier documentaire") as demo:
                      outputs=md_out)
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(share=True)
